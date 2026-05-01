@@ -16,11 +16,11 @@ app = FastAPI()
 def home():
     return {"message": "Bhai backend ekdum mast chal raha hai Railway par!"}
 
-# CORS Settings: Isse frontend backend se baat kar payega
+# CORS Settings: Ekdum open settings taaki koi bhi request block na ho
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False, # Credentials hatane se CORS issues kam hote hain testing mein
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,10 +49,10 @@ def signup(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
 def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.username).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bhai email galat hai!")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhai email galat hai!")
 
     if not auth.verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Password galat hai!")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password galat hai!")
 
     access_token = auth.create_access_token(data={"user_id": user.id, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
