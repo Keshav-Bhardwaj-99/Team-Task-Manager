@@ -2,6 +2,8 @@
 
 This is a simple application to manage team projects and tasks. It helps admins and team members to work together in one place.
 
+**Live Demo:** [https://team-task-manager-rose.vercel.app/](https://team-task-manager-rose.vercel.app/)
+
 ### Key Features:
 - **Login and Signup:** You can create an account as an Admin or a Team Member.
 - **Projects:** Admins can create new projects for the team.
