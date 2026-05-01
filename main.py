@@ -12,6 +12,10 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+@app.get("/")
+def home():
+    return {"message": "Bhai backend ekdum mast chal raha hai Railway par!"}
+
 # CORS Settings: Isse frontend backend se baat kar payega
 app.add_middleware(
     CORSMiddleware,
