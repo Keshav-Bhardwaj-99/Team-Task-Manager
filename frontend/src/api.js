@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Bhai jab deploy karoge, toh ye URL live wale backend se replace kar dena
-const API_URL = 'http://127.0.0.1:8000';
+// Bhai ye hamara live backend ka link hai
+const API_URL = 'https://team-task-manager-production-9f23.up.railway.app';
 
 const api = axios.create({
     baseURL: API_URL
