@@ -16,7 +16,10 @@ const Signup = () => {
             alert('Account ban gaya! Ab login karo bhai.');
             navigate('/');
         } catch (error) {
-            alert('Signup fail ho gaya! Email shayad pehle se hai.');
+            // Error detail nikalne ke liye
+            const errorMsg = error.response?.data?.detail || "Kuch unknown error hai bhai!";
+            alert(`Signup fail: ${errorMsg}`);
+            console.log("Full Error:", error);
         }
     };
 

@@ -40,7 +40,7 @@ def signup(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-# Login logic (Token milega yahan se)
+# Login logic Token milega yahan se
 @app.post("/login")
 def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.username).first()
@@ -53,12 +53,12 @@ def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session =
     access_token = auth.create_access_token(data={"user_id": user.id, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Saare users ki list (Admin task assign karne ke liye use karega)
+# Saare users ki list iska use Admin task assign karne ke liye karega
 @app.get("/users", response_model=list[schemas.UserOut])
 def get_users(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     return db.query(models.User).all()
 
-# Naya Project banane ke liye (Sirf Admin kar sakta hai)
+# Naya Project banane ke liye jo ki sirf Admin kar sakta hai
 @app.post("/projects", response_model=schemas.ProjectOut)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "Admin":
@@ -91,7 +91,7 @@ def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db), current
     db.refresh(new_task)
     return new_task
 
-# Tasks fetch karne ke liye (Admin ko sab dikhega, Member ko sirf apna)
+# Tasks fetch karne ke liye isse - Admin ko sab dikhega, Member ko sirf apna dashboard dikhega
 @app.get("/my-tasks", response_model=list[schemas.TaskOut])
 def get_my_tasks(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role == "Admin":
