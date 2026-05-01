@@ -12,11 +12,13 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+# Root route taaki pata chale backend chal raha hai
 @app.get("/")
 def home():
     return {"message": "Bhai backend ekdum mast chal raha hai Railway par!"}
 
-# CORS Settings: Ekdum open settings taaki koi bhi request block na ho
+# CORS Settings: Sabse zaroori cheez frontend connect karne ke liye
+# Humne origins mein "*" rakha hai aur headers ko ekdum open rakha hai
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,58 +46,49 @@ def signup(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-# Login logic Token milega yahan se
+# Login logic
 @app.post("/login")
 def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.username).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bhai email galat hai!")
+        raise HTTPException(status_code=401, detail="Bhai email galat hai!")
 
     if not auth.verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Password galat hai!")
+        raise HTTPException(status_code=401, detail="Password galat hai!")
 
     access_token = auth.create_access_token(data={"user_id": user.id, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# Saare users ki list iska use Admin task assign karne ke liye karega
+# Baaki saare routes...
 @app.get("/users", response_model=list[schemas.UserOut])
 def get_users(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     return db.query(models.User).all()
 
-# Naya Project banane ke liye jo ki sirf Admin kar sakta hai
 @app.post("/projects", response_model=schemas.ProjectOut)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Sirf Admin hi project bana sakta hai!")
-    
     new_project = models.Project(**project.model_dump(), owner_id=current_user.id)
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
     return new_project
 
-# Projects dekhne ke liye
 @app.get("/projects", response_model=list[schemas.ProjectOut])
 def get_all_projects(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     return db.query(models.Project).all()
 
-# Naya Task assign karne ke liye
 @app.post("/tasks", response_model=schemas.TaskOut)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     project = db.query(models.Project).filter(models.Project.id == task.project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project nahi mila!")
-
-    if project.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Aap is project ke admin nahi ho!")
-
     new_task = models.Task(**task.model_dump())
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
     return new_task
 
-# Tasks fetch karne ke liye isse - Admin ko sab dikhega, Member ko sirf apna dashboard dikhega
 @app.get("/my-tasks", response_model=list[schemas.TaskOut])
 def get_my_tasks(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role == "Admin":
@@ -108,67 +101,47 @@ def get_my_tasks(db: Session = Depends(get_db), current_user: models.User = Depe
         project = db.query(models.Project).filter(models.Project.id == t.project_id).first()
         owner = db.query(models.User).filter(models.User.id == project.owner_id).first() if project else None
         member = db.query(models.User).filter(models.User.id == t.assigned_to).first()
-        
         task_data = schemas.TaskOut.model_validate(t)
         task_data.owner_name = owner.name if owner else "Admin"
         task_data.assigned_name = member.name if member else "Member"
         task_data.project_name = project.name if project else "Project"
-        
         comments_with_names = []
         for c in t.comments:
             author = db.query(models.User).filter(models.User.id == c.user_id).first()
             comment_data = schemas.CommentOut.model_validate(c)
             comment_data.author_name = author.name if author else "User"
             comments_with_names.append(comment_data)
-        
         task_data.comments = comments_with_names
         results.append(task_data)
-        
     return results
 
-# Status update karne ke liye logic
 @app.patch("/tasks/{task_id}", response_model=schemas.TaskOut)
 def update_task_status(task_id: int, task_update: schemas.TaskStatusUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task nahi mila!")
-
-    # Admin final status badlega, Member apna progress batayega
     if current_user.role == "Admin":
-        if task_update.admin_status:
-            task.admin_status = task_update.admin_status
+        if task_update.admin_status: task.admin_status = task_update.admin_status
     elif current_user.id == task.assigned_to:
-        if task_update.status:
-            task.status = task_update.status
-    else:
-        raise HTTPException(status_code=403, detail="Bhai aapko permission nahi hai!")
-
+        if task_update.status: task.status = task_update.status
     db.commit()
     db.refresh(task)
     return task
 
-# Messaging / Chat karne ke liye route
 @app.post("/tasks/{task_id}/comments", response_model=schemas.CommentOut)
 def add_comment(task_id: int, comment: schemas.CommentCreate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    task = db.query(models.Task).filter(models.Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task nahi mila!")
-    
     new_comment = models.Comment(content=comment.content, task_id=task_id, user_id=current_user.id)
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
-    
     res = schemas.CommentOut.model_validate(new_comment)
     res.author_name = current_user.name
     return res
 
-# Dashboard ke stats nikalne ke liye
 @app.get("/dashboard-stats")
 def get_stats(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
     total_projects = db.query(models.Project).count()
     total_tasks = db.query(models.Task).count()
-    # Stats sirf tab "Done" dikhayega jab admin Final Complete karega
     completed_tasks = db.query(models.Task).filter(models.Task.admin_status == "Completed").count()
     pending_tasks = total_tasks - completed_tasks
     return {
