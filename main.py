@@ -12,11 +12,11 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Frontend se request handle karne ke liye ye middleware zaroori hai
+# CORS Settings: Isse frontend backend se baat kar payega
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False, # Credentials hatane se CORS issues kam hote hain testing mein
     allow_methods=["*"],
     allow_headers=["*"],
 )
